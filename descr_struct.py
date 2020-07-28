@@ -181,7 +181,13 @@ class StructuralDescriptor():
             
     def testseq_score_energetics(self):
         '''Score input sequence according to deltaG from lookup table of
-        http://jgp.rupress.org/content/129/5/371 
+        http://jgp.rupress.org/content/129/5/371 (Tieleman 2007). The latter
+        compares these values to the experimentally determined Wimley-White (1996)
+        scales for deltaG to POPC interface and octanol. These can be got from 
+        https://blanco.biomol.uci.edu/hydrophobicity_scales.html
+        Modlamp has several hydrophobicity scales, but I assume these don't 
+        consider lipid interfaces.
+
         Returns del_fe_interface, del_fe_center for input sequence in_seq
         Note 14/6/19: changed from deltadeltaG w.r.t. template to deltaG
         Note 13/7/20: updated to separate values for 4 helices'''
