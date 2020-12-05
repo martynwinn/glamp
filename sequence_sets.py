@@ -16,6 +16,10 @@ class SequenceSets():
         """
         Class is a set of related sequences, grouped together so we
         can do some simple comparisons.
+        seqs - list of sequences, as string of one-character amino
+               acid codes
+        offsets - list of offsets to be applied to seqs
+                  not really used yet
         """
 
         self.seqs = seqs
@@ -40,8 +44,11 @@ class SequenceSets():
             self.offsets = np.append(self.offsets,np.zeros(len(seqs)))
         print("Appended %i sequences to give %i in the set" % (len(seqs),len(self.seqs)))
 
+        return len(self.seqs)
+        
     def find_duplicates(self):
-        '''Check to see if there are any duplicated sequences.'''
+        '''Check to see if there are any duplicated sequences in the
+        current set.'''
 
         duplicates = []
         # this is not the most efficient O(n^2) but don't think that
@@ -57,6 +64,8 @@ class SequenceSets():
             print("Duplicates found!")
         else:
             print("No duplicates.")
+
+        return len(duplicates)
 
     def generate_sequence_path(self,start_seq,nser=10,lser=10,nmut=1,scope='cons'):
         '''Generate sequences using mutations from a starting sequence.
@@ -81,7 +90,7 @@ class SequenceSets():
             for iseq in range(lser):
                 for m in range(nmut):
                     # select place to mutate
-                    i = random.randint(0,50)
+                    i = random.randint(0,len(start_seq)-1)
                     curr_type = aa[curr_seq[i]]
                     # selecting what to mutate into
                     not_mutated = True
