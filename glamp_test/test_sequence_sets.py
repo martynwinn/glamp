@@ -1,6 +1,10 @@
 '''
 Unittests for glamp/sequence_sets.py
 
+Run as:
+export PYTHONPATH=/home/mdw/ingenza/machine_learning/amps
+python test_sequence_sets.py
+
 TODO check code coverage
 '''
 import unittest
@@ -25,6 +29,10 @@ class SequenceSetsTest(unittest.TestCase):
     def test_add_sequences(self):
         s = SequenceSets(self.sequences1)
         self.assertEqual(s.add_sequences(self.sequences2),4)
+
+    def test_add_sequences_from_file(self):
+        s = SequenceSets()
+        self.assertEqual(s.add_sequences_from_file("test_sequences.fasta"),2)
 
     def test_find_duplicates(self):
         s = SequenceSets(self.sequences1)

@@ -6,13 +6,20 @@
 import numpy as np
 import difflib
 import random
+# this is biopython
+from Bio import SeqIO
+
+# TODO
+# Seqs from file
+# Output non-redundant set
+# Alignment (wrap biopython?)
 
 class SequenceSets():
     """
     Base class for sets of peptide sequences
     """
     
-    def __init__(self,seqs,offsets=None):
+    def __init__(self,seqs=[],offsets=[]):
         """
         Class is a set of related sequences, grouped together so we
         can do some simple comparisons.
@@ -22,29 +29,52 @@ class SequenceSets():
                   not really used yet
         """
 
-        self.seqs = seqs
-        if offsets is not None:
-            self.offsets = np.array(offsets)
-        else:
-            self.offsets = np.zeros(len(seqs))
+        self.seqs = np.array(seqs)
+        self.offsets = np.array(offsets)
+        # case where seqs but not offsets are given
+        if len(self.offsets) == 0:
+            self.offsets = np.zeros(len(self.seqs))
         print("Created sequence set with %i sequences" % (len(self.seqs)))
 
         # one member of the set can be designated the reference
         self.reference_seq = 0
 
-    def add_sequences(self,seqs,offsets=None):
+    def set_reference(self,ref_seq):
+        """
+        ref_seq - reference sequence
+                  need to find in set
+        """
+        self.reference_seq = ref_seq
+        
+    def add_sequences(self,seqs,offsets=[]):
         """
         Add a set of sequences to the existing set.
         """
 
-        self.seqs.extend(seqs)
-        if offsets is not None:
-            self.offsets = np.append(self.offsets,offsets)
+        print(self.seqs)
+        self.seqs = np.append(self.seqs,seqs)
+        print(self.seqs)
+        if len(offsets) != 0:
+            self.offsets = self.offsets = np.append(self.offsets,offsets)
         else:
-            self.offsets = np.append(self.offsets,np.zeros(len(seqs)))
+            self.offsets = self.offsets = np.append(self.offsets,np.zeros(len(seqs)))
         print("Appended %i sequences to give %i in the set" % (len(seqs),len(self.seqs)))
 
         return len(self.seqs)
+        
+    def add_sequences_from_file(self,seq_file):
+        """
+        Add a set of sequences from an external file.
+
+        seq_file - file of unaligned sequences. Currently assume fasta format.
+        """
+
+        seqs = []
+        with open(seq_file, "r") as handle:
+            for record in SeqIO.parse(handle, "fasta"):
+                seqs.append(record.seq)
+
+        return self.add_sequences(seqs)
         
     def find_duplicates(self):
         '''Check to see if there are any duplicated sequences in the
@@ -54,9 +84,9 @@ class SequenceSets():
         # this is not the most efficient O(n^2) but don't think that
         # matters in this context
         for s in self.seqs:
-            if self.seqs.count(s) > 1:
+            if np.count_nonzero(self.seqs == s) > 1:
                 if s not in duplicates:
-                    print("Sequence %s occurs %i times" % (s,self.seqs.count(s)))
+                    print("Sequence %s occurs %i times" % (s,np.count_nonzero(self.seqs == s)))
                     duplicates.append(s)
                     print(' '.join(list(difflib.context_diff(self.seqs[self.reference_seq],s))))
 

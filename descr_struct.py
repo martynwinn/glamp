@@ -7,42 +7,76 @@ import numpy as np
 
 class StructuralDescriptor():
     """
-    Base class for structure-based peptide descriptors
+    Base class for structure-based peptide descriptors.
+
+    We are assuming sequences related to epidermicin NI01, that form a 
+    4-helical bundle.
+    Offsets refer to shifts in where the sequence starts. For example,
+    Aucn A53 is shifted one to the right, to align the Gly hinges. This
+    is quite simplistic and doesn't cover gapped alignments.
+    Offsets are also useful if want to use a sub-sequence, such as a hairpin.
     """
     
-    def __init__(self,seqs,offsets):
+    def __init__(self,seqs=[],offsets=[]):
         """
-        Defaults ...
+        seqs - array of sequences as strings
+        offsets - array of integers
         """
 
-        print("iggy")
         self.seqs = seqs
         self.offsets = offsets
+        
+        #reference structure encoding the 4-helix bundle
+        # TODO check this is reasonable for homologous structures where
+        # structure is available
+        # 0 = buried, 1 = intermediate, 2 = surface
+        # NB this is slightly subjective and can be optimised
+        self.ref_structure = [2,2,1,0,2,2,0,0,2,1,
+                    0,1,2,1,1,2,2,0,0,1,
+                    0,0,2,2,1,1,1,1,0,1,
+                    2,0,1,2,2,2,1,1,1,2,
+                    1,0,0,2,1,0,2,2,2,1,
+                    2]
+
+        # residue numbers for core residues (starting at zero)
+        self.core_res = [res for res,code in enumerate(self.ref_structure) if code == 0]
+    
+        # putative dimer interface (not yet used)
+        self.dimer_res = [27,30,31,40,44,47,48,49]
+        # control interface (not yet used)
+        self.control_res = [8,12,15,19,22]
+        # residue numbers for interface residues (starting at zero, i.e. 23 is Lys24)
+        self.iface_res = [23,24,27,30,31,34,36,40,44,47]
+
+        # some initialisations
         self.desc_struct = np.zeros((len(self.seqs),12))
         self.desc_core = np.zeros((len(self.seqs),7))
         self.desc_iface = np.zeros((len(self.seqs),4))
         self.desc_ener = np.zeros((len(self.seqs),8))
         self.num_descriptors = 0
 
+    def get_residue_location(self,resid,offset):
+        ''' Utility to return self.ref_structure for individual residues.
+            resid is residue number of peptide, so starting from 1
+            offset is the offset of the sequence w.r.t NI01 sequence
+        '''
+
+        if self.ref_structure[resid+offset-1] == 0:
+            return 'buried'
+        elif self.ref_structure[resid+offset-1] == 1:
+            return 'intermediate'
+        elif self.ref_structure[resid+offset-1] == 2:
+            return 'surface'
     
     def testseq_score_structure(self):
         '''Score using known NI01 xtal structure.
         Structure is used in terms of which residues are surface or buried.
         Thus, can have not just number of Lys, but number of Lys on surface.'''
-    
-        # reference structure (move this out)
-        # 0 = buried, 1 = intermediate, 2 = surface
-        ref_structure = [2,2,1,0,2,2,0,0,2,1,
-                    0,1,2,1,1,2,2,0,0,1,
-                    0,0,2,2,1,1,1,1,0,1,
-                    2,0,1,2,2,2,1,1,1,1,
-                    1,0,0,2,1,0,2,2,2,1,
-                    2]
-    
+
+        # loop over sequences in this instance of StructuralDescriptor()
         for iseq,in_seq in enumerate(self.seqs):
             # can't go beyond ref_structure description
-            # TODO fix when have offset
-            seq_length = min(51,len(in_seq))
+            seq_length = min(51,len(in_seq)-self.offsets[iseq])
             n_cationic_buried = 0
             n_anionic_buried = 0
             n_polar_buried = 0
@@ -57,7 +91,7 @@ class StructuralDescriptor():
             n_hphobic_surface = 0
 
             for i in range(seq_length):
-                if ref_structure[i+self.offsets[iseq]] == 0:
+                if self.ref_structure[i+self.offsets[iseq]] == 0:
                     if in_seq[i] in ['K','R','H']:
                         n_cationic_buried += 1
                     if in_seq[i] in ['D','E']:
@@ -66,7 +100,7 @@ class StructuralDescriptor():
                         n_polar_buried += 1
                     if in_seq[i] in ['A','V','L','I','F']:
                         n_hphobic_buried += 1
-                if ref_structure[i+self.offsets[iseq]] == 1:
+                if self.ref_structure[i+self.offsets[iseq]] == 1:
                     if in_seq[i] in ['K','R','H']:
                         n_cationic_inter += 1
                     if in_seq[i] in ['D','E']:
@@ -75,7 +109,7 @@ class StructuralDescriptor():
                         n_polar_inter += 1
                     if in_seq[i] in ['A','V','L','I','F']:
                         n_hphobic_inter += 1
-                if ref_structure[i+self.offsets[iseq]] == 2:
+                if self.ref_structure[i+self.offsets[iseq]] == 2:
                     if in_seq[i] in ['K','R','H']:
                         n_cationic_surface += 1
                     if in_seq[i] in ['D','E']:
@@ -104,11 +138,6 @@ class StructuralDescriptor():
         '''Score using known NI01 xtal structure.
         Look at which residue types form the hydrophobic core.'''
     
-        # reference structure (move this out)
-        # residue numbers for core residues (starting at zero)
-        # list agrees with 0=buried above, with addition of Ile33
-        core_res = [3,6,7,10,17,18,20,21,28,31,32,41,42,45]
-    
         for iseq,in_seq in enumerate(self.seqs):
             # TODO fix when have offset
             n_val = 0
@@ -119,7 +148,7 @@ class StructuralDescriptor():
             n_tyr = 0
             n_trp = 0
 
-            for i in core_res:
+            for i in self.core_res:
                 if in_seq[i] in ['V']:
                     n_val += 1
                 if in_seq[i] in ['L']:
@@ -135,24 +164,20 @@ class StructuralDescriptor():
                 if in_seq[i] in ['W']:
                     n_trp += 1
 
-            # features for this sequence, normalise to 14 core residues
-            self.desc_core[iseq][0] = n_val / 14.0
-            self.desc_core[iseq][1] = n_leu / 14.0
-            self.desc_core[iseq][2] = n_ile / 14.0
-            self.desc_core[iseq][3] = n_ala / 14.0
-            self.desc_core[iseq][4] = n_phe / 14.0
-            self.desc_core[iseq][5] = n_tyr / 14.0
-            self.desc_core[iseq][6] = n_trp / 14.0
+            # features for this sequence, normalise to number of core residues
+            self.desc_core[iseq][0] = n_val / len(self.core_res)
+            self.desc_core[iseq][1] = n_leu / len(self.core_res)
+            self.desc_core[iseq][2] = n_ile / len(self.core_res)
+            self.desc_core[iseq][3] = n_ala / len(self.core_res)
+            self.desc_core[iseq][4] = n_phe / len(self.core_res)
+            self.desc_core[iseq][5] = n_tyr / len(self.core_res)
+            self.desc_core[iseq][6] = n_trp / len(self.core_res)
 
         return self.desc_core
    
     def testseq_score_iface_res(self):
         '''Score using known NI01 xtal structure.
         Look at which residue types form the putative interface.'''
-    
-        # reference structure (move this out)
-        # residue numbers for interface residues (starting at zero)
-        iface_res = [23,24,27,30,31,34,36,40,44,47]
     
         for iseq,in_seq in enumerate(self.seqs):
             # TODO fix when have offset
@@ -161,7 +186,7 @@ class StructuralDescriptor():
             n_pol = 0
             n_hph = 0
 
-            for i in iface_res:
+            for i in self.iface_res:
                 if in_seq[i] in ['K','R','H']:
                     n_pos += 1
                 if in_seq[i] in ['D','E']:
@@ -171,11 +196,11 @@ class StructuralDescriptor():
                 if in_seq[i] in ['A','V','L','I','F','W']:
                     n_hph += 1
 
-            # features for this sequence, normalise to 10 interface residues
-            self.desc_iface[iseq][0] = n_pos / 10.0
-            self.desc_iface[iseq][1] = n_neg / 10.0
-            self.desc_iface[iseq][2] = n_pol / 10.0
-            self.desc_iface[iseq][3] = n_hph / 10.0
+            # features for this sequence, normalise to number of interface residues
+            self.desc_iface[iseq][0] = n_pos / len(self.iface_res)
+            self.desc_iface[iseq][1] = n_neg / len(self.iface_res)
+            self.desc_iface[iseq][2] = n_pol / len(self.iface_res)
+            self.desc_iface[iseq][3] = n_hph / len(self.iface_res)
 
         return self.desc_iface
             
